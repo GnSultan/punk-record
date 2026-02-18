@@ -1,7 +1,20 @@
+import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { sessionManager } from "../engines/session-manager.js";
 import { queryLogger } from "../analytics/query-log.js";
+
+/**
+ * Derive a project slug from an absolute directory path.
+ * Uses the last path component, lowercased and kebab-cased.
+ */
+function slugFromPath(dirPath: string): string {
+  const base = path.basename(dirPath);
+  return base
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
 
 export function registerSessionTools(server: McpServer): void {
   server.registerTool(
@@ -11,23 +24,37 @@ export function registerSessionTools(server: McpServer): void {
       description:
         "Start a work session on a project. Returns full project context including " +
         "what happened last session, pending work, open problems, recent decisions. " +
-        "Call this at the START of any project work.",
+        "Call this at the START of any project work. If project is omitted, it is " +
+        "auto-detected from the cwd.",
       inputSchema: z.object({
-        project: z.string().describe("Project slug (e.g. 'elimuafrica')"),
+        project: z
+          .string()
+          .optional()
+          .describe(
+            "Project slug (e.g. 'elimuafrica'). If omitted, auto-detected from cwd.",
+          ),
+        cwd: z
+          .string()
+          .optional()
+          .describe(
+            "Current working directory — used to auto-detect project name if project is omitted",
+          ),
         goal: z
           .string()
           .optional()
           .describe("What you plan to accomplish this session"),
       }),
     },
-    async ({ project, goal }) => {
+    async ({ project, cwd, goal }) => {
       const start = Date.now();
-      const context = await sessionManager.beginSession(project, goal);
+      const slug =
+        project ?? (cwd !== undefined ? slugFromPath(cwd) : "unknown");
+      const context = await sessionManager.beginSession(slug, goal);
 
       queryLogger.log({
         timestamp: new Date().toISOString(),
         tool: "begin_project_session",
-        params: { project, goal },
+        params: { project: slug, goal },
         resultCount: 1,
         durationMs: Date.now() - start,
       });
