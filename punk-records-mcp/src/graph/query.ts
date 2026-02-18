@@ -1,31 +1,63 @@
-import { graphStore } from './store.js';
-import type { GraphEntity, GraphRelation } from '../types.js';
+import { getDatabase } from "./database.js";
+import { graphStore } from "./store.js";
+import type { GraphEntity, GraphRelation } from "../types.js";
+import type { NodeRow, EdgeRow } from "./types.js";
+import { nodeFromRow } from "./types.js";
 
 export interface GraphQueryResult {
   entities: GraphEntity[];
   relations: GraphRelation[];
 }
 
+function rowToEntity(row: NodeRow): GraphEntity {
+  const node = nodeFromRow(row);
+  return {
+    id: node.id,
+    name: node.name,
+    entityType: node.entityType as GraphEntity["entityType"],
+    properties: node.properties,
+  };
+}
+
+function rowToRelation(row: EdgeRow): GraphRelation {
+  return {
+    from: row.source_id,
+    to: row.target_id,
+    relationType: row.type as GraphRelation["relationType"],
+  };
+}
+
 export async function queryByEntityType(
   entityType: string,
 ): Promise<GraphQueryResult> {
-  const allEntities = await graphStore.getAllEntities();
-  const entities = allEntities.filter((e) => e.entityType === entityType);
+  // Ensure store is initialized (triggers migration if needed)
+  await graphStore.getAllEntities();
 
-  const allRelations: GraphRelation[] = [];
-  for (const entity of entities) {
-    const rels = await graphStore.getRelationsFor(entity.id);
-    allRelations.push(...rels);
+  const db = getDatabase();
+
+  const entityRows = db
+    .prepare("SELECT * FROM nodes WHERE entity_type = ? ORDER BY name")
+    .all(entityType) as NodeRow[];
+
+  const entities = entityRows.map(rowToEntity);
+  const entityIds = entities.map((e) => e.id);
+
+  if (entityIds.length === 0) {
+    return { entities: [], relations: [] };
   }
 
-  // Deduplicate
-  const uniqueRelations = Array.from(
-    new Map(
-      allRelations.map((r) => [`${r.from}-${r.relationType}-${r.to}`, r]),
-    ).values(),
-  );
+  // Get all edges connected to these entities
+  const placeholders = entityIds.map(() => "?").join(",");
+  const edgeRows = db
+    .prepare(
+      `SELECT DISTINCT * FROM edges
+       WHERE source_id IN (${placeholders}) OR target_id IN (${placeholders})`,
+    )
+    .all(...entityIds, ...entityIds) as EdgeRow[];
 
-  return { entities, relations: uniqueRelations };
+  const relations = edgeRows.map(rowToRelation);
+
+  return { entities, relations };
 }
 
 export async function findCrossProjectPatterns(): Promise<{
@@ -36,63 +68,61 @@ export async function findCrossProjectPatterns(): Promise<{
     reason: string;
   }>;
 }> {
-  const allEntities = await graphStore.getAllEntities();
-  const projects = allEntities.filter((e) => e.entityType === 'project');
-  const patterns = allEntities.filter((e) => e.entityType === 'pattern');
+  // Ensure store is initialized
+  await graphStore.getAllEntities();
 
-  const sharedPatterns: Array<{ pattern: string; projects: string[] }> = [];
+  const db = getDatabase();
 
-  for (const pattern of patterns) {
-    const relations = await graphStore.getRelationsFor(pattern.id);
-    const relatedProjects = relations
-      .filter((r) => r.relationType === 'uses')
-      .map((r) => (r.from === pattern.id ? r.to : r.from))
-      .filter((id) => projects.some((p) => p.id === id));
+  // Find patterns used by multiple projects
+  const sharedRows = db
+    .prepare(
+      `SELECT n.name as pattern_name, GROUP_CONCAT(p.name) as project_names
+       FROM nodes n
+       JOIN edges e ON (e.source_id = n.id OR e.target_id = n.id)
+       JOIN nodes p ON (
+         (p.id = e.source_id OR p.id = e.target_id)
+         AND p.id != n.id
+         AND p.entity_type = 'project'
+       )
+       WHERE n.entity_type = 'pattern'
+       AND e.type = 'uses'
+       GROUP BY n.id
+       HAVING COUNT(DISTINCT p.id) > 1`,
+    )
+    .all() as { pattern_name: string; project_names: string }[];
 
-    if (relatedProjects.length > 1) {
-      const projectNames = relatedProjects.map((id) => {
-        const p = projects.find((proj) => proj.id === id);
-        return p?.name ?? id;
-      });
-      sharedPatterns.push({
-        pattern: pattern.name,
-        projects: projectNames,
-      });
-    }
-  }
+  const sharedPatterns = sharedRows.map((row) => ({
+    pattern: row.pattern_name,
+    projects: row.project_names.split(","),
+  }));
 
-  // Find potential connections
-  const potentialConnections: Array<{
-    project1: string;
-    project2: string;
-    reason: string;
-  }> = [];
+  // Find potential connections between projects via shared targets
+  const connectionRows = db
+    .prepare(
+      `SELECT p1.name as project1, p2.name as project2, GROUP_CONCAT(DISTINCT shared.name) as shared_names
+       FROM nodes p1
+       JOIN edges e1 ON (e1.source_id = p1.id OR e1.target_id = p1.id)
+       JOIN nodes shared ON (
+         (shared.id = e1.source_id OR shared.id = e1.target_id)
+         AND shared.id != p1.id
+       )
+       JOIN edges e2 ON (e2.source_id = shared.id OR e2.target_id = shared.id)
+       JOIN nodes p2 ON (
+         (p2.id = e2.source_id OR p2.id = e2.target_id)
+         AND p2.id != shared.id
+         AND p2.entity_type = 'project'
+         AND p2.id > p1.id
+       )
+       WHERE p1.entity_type = 'project'
+       GROUP BY p1.id, p2.id`,
+    )
+    .all() as { project1: string; project2: string; shared_names: string }[];
 
-  for (let i = 0; i < projects.length; i++) {
-    for (let j = i + 1; j < projects.length; j++) {
-      const rels1 = await graphStore.getRelationsFor(projects[i].id);
-      const rels2 = await graphStore.getRelationsFor(projects[j].id);
-      const targets1 = new Set(
-        rels1.map((r) => (r.from === projects[i].id ? r.to : r.from)),
-      );
-      const targets2 = new Set(
-        rels2.map((r) => (r.from === projects[j].id ? r.to : r.from)),
-      );
-      const shared = [...targets1].filter((t) => targets2.has(t));
-
-      if (shared.length > 0) {
-        const sharedNames = shared.map((id) => {
-          const entity = allEntities.find((e) => e.id === id);
-          return entity?.name ?? id;
-        });
-        potentialConnections.push({
-          project1: projects[i].name,
-          project2: projects[j].name,
-          reason: `Shared connections: ${sharedNames.join(', ')}`,
-        });
-      }
-    }
-  }
+  const potentialConnections = connectionRows.map((row) => ({
+    project1: row.project1,
+    project2: row.project2,
+    reason: `Shared connections: ${row.shared_names}`,
+  }));
 
   return { sharedPatterns, potentialConnections };
 }

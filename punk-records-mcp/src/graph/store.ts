@@ -1,129 +1,172 @@
-import fs from "node:fs/promises";
-import path from "node:path";
-import { DATA_FILES } from "../config.js";
-import { ensureDir } from "../utils/files.js";
+/* eslint-disable @typescript-eslint/require-await */
+// Methods are async for backward compatibility — all callers await them.
+// SQLite via better-sqlite3 is synchronous, so no actual awaits needed.
+
+import { getDatabase } from "./database.js";
+import { migrateJsonlToSqlite } from "./migrate.js";
 import type { GraphEntity, GraphRelation } from "../types.js";
+import type { NodeRow, EdgeRow, GraphNode } from "./types.js";
+import { nodeFromRow } from "./types.js";
 
-interface JsonlItem {
-  type: string;
-  id?: string;
-  name?: string;
-  entityType?: string;
-  properties?: Record<string, string>;
-  from?: string;
-  to?: string;
-  relationType?: string;
-}
-
-interface GraphData {
-  entities: Map<string, GraphEntity>;
-  relations: GraphRelation[];
+/** Convert a full GraphNode back to the legacy GraphEntity shape */
+function nodeToEntity(node: GraphNode): GraphEntity {
+  return {
+    id: node.id,
+    name: node.name,
+    entityType: node.entityType as GraphEntity["entityType"],
+    properties: node.properties,
+  };
 }
 
 class GraphStore {
-  private data: GraphData = { entities: new Map(), relations: [] };
-  private loaded = false;
+  private initialized = false;
 
-  async load(): Promise<void> {
-    if (this.loaded) return;
-    await ensureDir(path.dirname(DATA_FILES.graph));
-    try {
-      const raw = await fs.readFile(DATA_FILES.graph, "utf-8");
-      const lines = raw.split("\n").filter((l) => l.trim() !== "");
-      for (const line of lines) {
-        const item = JSON.parse(line) as JsonlItem;
-        if (item.type === "entity") {
-          const entity: GraphEntity = {
-            id: item.id ?? "",
-            name: item.name ?? "",
-            entityType: (item.entityType ??
-              "concept") as GraphEntity["entityType"],
-            properties: item.properties ?? {},
-          };
-          this.data.entities.set(entity.id, entity);
-        } else if (item.type === "relation") {
-          const relation: GraphRelation = {
-            from: item.from ?? "",
-            to: item.to ?? "",
-            relationType: (item.relationType ??
-              "supports") as GraphRelation["relationType"],
-          };
-          this.data.relations.push(relation);
-        }
-      }
-    } catch {
-      // File doesn't exist yet
-    }
-    this.loaded = true;
-  }
-
-  async save(): Promise<void> {
-    await ensureDir(path.dirname(DATA_FILES.graph));
-    const lines: string[] = [];
-    for (const entity of this.data.entities.values()) {
-      lines.push(JSON.stringify({ type: "entity", ...entity }));
-    }
-    for (const relation of this.data.relations) {
-      lines.push(JSON.stringify({ type: "relation", ...relation }));
-    }
-    await fs.writeFile(DATA_FILES.graph, lines.join("\n") + "\n", "utf-8");
+  private init(): void {
+    if (this.initialized) return;
+    // getDatabase() creates tables; migrateJsonlToSqlite() seeds from JSONL if empty
+    getDatabase();
+    migrateJsonlToSqlite();
+    this.initialized = true;
   }
 
   async addEntity(entity: GraphEntity): Promise<GraphEntity> {
-    await this.load();
-    this.data.entities.set(entity.id, entity);
-    await this.save();
+    this.init();
+    const db = getDatabase();
+    const now = new Date().toISOString();
+
+    const existing = db
+      .prepare("SELECT id FROM nodes WHERE id = ?")
+      .get(entity.id) as { id: string } | undefined;
+
+    if (existing !== undefined) {
+      // Update existing node
+      db.prepare(
+        `UPDATE nodes SET name = ?, entity_type = ?, properties = ?, updated_at = ? WHERE id = ?`,
+      ).run(
+        entity.name,
+        entity.entityType,
+        JSON.stringify(entity.properties),
+        now,
+        entity.id,
+      );
+    } else {
+      // Insert new node
+      db.prepare(
+        `INSERT INTO nodes (id, name, entity_type, layer, content, properties, confidence, version, created_at, updated_at, last_accessed, access_count)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        entity.id,
+        entity.name,
+        entity.entityType,
+        "pattern",
+        JSON.stringify({}),
+        JSON.stringify(entity.properties),
+        0.5,
+        1,
+        now,
+        now,
+        now,
+        0,
+      );
+    }
+
     return entity;
   }
 
   async addRelation(relation: GraphRelation): Promise<GraphRelation> {
-    await this.load();
-    const exists = this.data.relations.some(
-      (r) =>
-        r.from === relation.from &&
-        r.to === relation.to &&
-        r.relationType === relation.relationType,
+    this.init();
+    const db = getDatabase();
+    const now = new Date().toISOString();
+    const edgeId = `${relation.from}-${relation.relationType}-${relation.to}`;
+
+    db.prepare(
+      `INSERT OR IGNORE INTO edges (id, type, source_id, target_id, weight, confidence, created_at, created_by, evidence)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      edgeId,
+      relation.relationType,
+      relation.from,
+      relation.to,
+      1.0,
+      0.5,
+      now,
+      "user",
+      JSON.stringify({}),
     );
-    if (!exists) {
-      this.data.relations.push(relation);
-      await this.save();
-    }
+
     return relation;
   }
 
   async getEntity(id: string): Promise<GraphEntity | undefined> {
-    await this.load();
-    return this.data.entities.get(id);
+    this.init();
+    const db = getDatabase();
+    const row = db.prepare("SELECT * FROM nodes WHERE id = ?").get(id) as
+      | NodeRow
+      | undefined;
+    if (row === undefined) return undefined;
+
+    // Update access tracking
+    db.prepare(
+      "UPDATE nodes SET last_accessed = ?, access_count = access_count + 1 WHERE id = ?",
+    ).run(new Date().toISOString(), id);
+
+    return nodeToEntity(nodeFromRow(row));
   }
 
   async getAllEntities(): Promise<GraphEntity[]> {
-    await this.load();
-    return Array.from(this.data.entities.values());
+    this.init();
+    const db = getDatabase();
+    const rows = db
+      .prepare("SELECT * FROM nodes ORDER BY name")
+      .all() as NodeRow[];
+    return rows.map((row) => nodeToEntity(nodeFromRow(row)));
   }
 
   async getRelationsFor(entityId: string): Promise<GraphRelation[]> {
-    await this.load();
-    return this.data.relations.filter(
-      (r) => r.from === entityId || r.to === entityId,
-    );
+    this.init();
+    const db = getDatabase();
+    const rows = db
+      .prepare("SELECT * FROM edges WHERE source_id = ? OR target_id = ?")
+      .all(entityId, entityId) as EdgeRow[];
+
+    return rows.map((row) => ({
+      from: row.source_id,
+      to: row.target_id,
+      relationType: row.type as GraphRelation["relationType"],
+    }));
   }
 
   async getRelationsByType(relationType: string): Promise<GraphRelation[]> {
-    await this.load();
-    return this.data.relations.filter((r) => r.relationType === relationType);
+    this.init();
+    const db = getDatabase();
+    const rows = db
+      .prepare("SELECT * FROM edges WHERE type = ?")
+      .all(relationType) as EdgeRow[];
+
+    return rows.map((row) => ({
+      from: row.source_id,
+      to: row.target_id,
+      relationType: row.type as GraphRelation["relationType"],
+    }));
   }
 
   async getConnectedEntities(
     entityId: string,
     depth: number = 1,
   ): Promise<{ entities: GraphEntity[]; relations: GraphRelation[] }> {
-    await this.load();
+    this.init();
+    const db = getDatabase();
     const visited = new Set<string>();
     const resultEntities: GraphEntity[] = [];
     const resultRelations: GraphRelation[] = [];
     const queue: { id: string; currentDepth: number }[] = [
       { id: entityId, currentDepth: 0 },
     ];
+
+    const getNode = db.prepare("SELECT * FROM nodes WHERE id = ?");
+    const getEdges = db.prepare(
+      "SELECT * FROM edges WHERE source_id = ? OR target_id = ?",
+    );
 
     while (queue.length > 0) {
       const item = queue.shift();
@@ -132,16 +175,21 @@ class GraphStore {
       if (visited.has(id) || currentDepth > depth) continue;
       visited.add(id);
 
-      const entity = this.data.entities.get(id);
-      if (entity !== undefined) resultEntities.push(entity);
+      const row = getNode.get(id) as NodeRow | undefined;
+      if (row !== undefined) {
+        resultEntities.push(nodeToEntity(nodeFromRow(row)));
+      }
 
       if (currentDepth < depth) {
-        const relations = this.data.relations.filter(
-          (r) => r.from === id || r.to === id,
-        );
-        for (const rel of relations) {
-          resultRelations.push(rel);
-          const nextId = rel.from === id ? rel.to : rel.from;
+        const edges = getEdges.all(id, id) as EdgeRow[];
+        for (const edge of edges) {
+          resultRelations.push({
+            from: edge.source_id,
+            to: edge.target_id,
+            relationType: edge.type as GraphRelation["relationType"],
+          });
+          const nextId =
+            edge.source_id === id ? edge.target_id : edge.source_id;
           if (!visited.has(nextId)) {
             queue.push({ id: nextId, currentDepth: currentDepth + 1 });
           }
@@ -157,20 +205,63 @@ class GraphStore {
     relations: number;
     disconnectedEntities: string[];
   }> {
-    await this.load();
-    const connected = new Set<string>();
-    for (const rel of this.data.relations) {
-      connected.add(rel.from);
-      connected.add(rel.to);
-    }
-    const disconnected = Array.from(this.data.entities.keys()).filter(
-      (id) => !connected.has(id),
-    );
+    this.init();
+    const db = getDatabase();
+
+    const entityCount = db
+      .prepare("SELECT COUNT(*) as count FROM nodes")
+      .get() as { count: number };
+    const relationCount = db
+      .prepare("SELECT COUNT(*) as count FROM edges")
+      .get() as { count: number };
+
+    // Find nodes that don't appear in any edge
+    const disconnected = db
+      .prepare(
+        `SELECT id FROM nodes
+         WHERE id NOT IN (SELECT source_id FROM edges)
+         AND id NOT IN (SELECT target_id FROM edges)`,
+      )
+      .all() as { id: string }[];
+
     return {
-      entities: this.data.entities.size,
-      relations: this.data.relations.length,
-      disconnectedEntities: disconnected,
+      entities: entityCount.count,
+      relations: relationCount.count,
+      disconnectedEntities: disconnected.map((d) => d.id),
     };
+  }
+
+  // --- Extended methods for engines (used by later phases) ---
+
+  /** Get a raw GraphNode with all SQLite fields */
+  getNode(id: string): GraphNode | undefined {
+    this.init();
+    const db = getDatabase();
+    const row = db.prepare("SELECT * FROM nodes WHERE id = ?").get(id) as
+      | NodeRow
+      | undefined;
+    if (row === undefined) return undefined;
+    return nodeFromRow(row);
+  }
+
+  /** Get all raw GraphNodes */
+  getAllNodes(): GraphNode[] {
+    this.init();
+    const db = getDatabase();
+    const rows = db
+      .prepare("SELECT * FROM nodes ORDER BY name")
+      .all() as NodeRow[];
+    return rows.map(nodeFromRow);
+  }
+
+  /** Get nodes by entity type */
+  getNodesByType(entityType: string): GraphNode[] {
+    this.init();
+    const db = getDatabase();
+    const rows = db
+      .prepare("SELECT * FROM nodes WHERE entity_type = ? ORDER BY name")
+      .all(entityType) as NodeRow[];
+    return rows.map(nodeFromRow);
   }
 }
 

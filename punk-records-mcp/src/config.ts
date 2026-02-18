@@ -24,6 +24,7 @@ export const DATA_FILES = {
   searchIndex: path.join(DATA_ROOT, "search-index.json"),
   graph: path.join(DATA_ROOT, "graph.jsonl"),
   queryLog: path.join(DATA_ROOT, "query-log.jsonl"),
+  database: path.join(DATA_ROOT, "punk-records.db"),
 } as const;
 
 export const SEARCH_CONFIG = {

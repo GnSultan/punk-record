@@ -1,2 +1,5 @@
 search-index.json
 query-log.jsonl
+*.db
+*.db-wal
+*.db-shm

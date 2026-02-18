@@ -10,6 +10,10 @@ import {
 } from "../utils/markdown.js";
 import { listMarkdownFiles } from "../utils/files.js";
 import type { PunkDocument } from "../types.js";
+import { getDatabase } from "../graph/database.js";
+import { tensionEngine } from "../engines/tension.js";
+import type { NodeRow } from "../graph/types.js";
+import { nodeFromRow } from "../graph/types.js";
 
 export function registerPrompts(server: McpServer): void {
   server.registerPrompt(
@@ -232,6 +236,112 @@ export function registerPrompts(server: McpServer): void {
             content: {
               type: "text" as const,
               text: `Evaluate this content against the voice and brand guidelines.\n\n**Voice Guidelines:**\n${voiceText}\n\n**Identity:**\n${identityText}\n\n${brandContext !== "" ? `**Brand Context (${brandLabel}):**\n${brandContext}\n\n` : ""}**Content to Evaluate:**\n${evalContent}\n\nScore it on:\n- Authenticity (does it sound like Aslam?)\n- Anti-pattern avoidance (no corporate speak, no generic templates)\n- Cultural relevance (Tanzania/Africa context where appropriate)\n- Clarity and impact`,
+            },
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerPrompt(
+    "deep_reflection",
+    {
+      title: "Deep Reflection",
+      description:
+        "Synthesize the state of the knowledge system — graph health, tensions, evolution trends, inferences, and layer distribution. Ask Claude to find what the system is missing.",
+    },
+    () => {
+      const db = getDatabase();
+
+      // Graph stats
+      const nodeCount = db.prepare("SELECT COUNT(*) as c FROM nodes").get() as {
+        c: number;
+      };
+      const edgeCount = db.prepare("SELECT COUNT(*) as c FROM edges").get() as {
+        c: number;
+      };
+
+      // Layer distribution
+      const layerDist = db
+        .prepare(
+          "SELECT layer, COUNT(*) as c FROM nodes GROUP BY layer ORDER BY c DESC",
+        )
+        .all() as { layer: string; c: number }[];
+
+      // Entity type distribution
+      const typeDist = db
+        .prepare(
+          "SELECT entity_type, COUNT(*) as c FROM nodes GROUP BY entity_type ORDER BY c DESC",
+        )
+        .all() as { entity_type: string; c: number }[];
+
+      // Active tensions
+      const tensions = tensionEngine.getActiveTensions();
+
+      // Most evolved
+      const evolved = db
+        .prepare(
+          "SELECT * FROM nodes WHERE version > 1 ORDER BY version DESC LIMIT 10",
+        )
+        .all() as NodeRow[];
+
+      // Low confidence nodes
+      const lowConf = db
+        .prepare(
+          "SELECT * FROM nodes WHERE confidence < 0.4 ORDER BY confidence ASC LIMIT 10",
+        )
+        .all() as NodeRow[];
+
+      // Pending inferences
+      const pendingInferences = db
+        .prepare(
+          "SELECT COUNT(*) as c FROM inferences WHERE status = 'pending'",
+        )
+        .get() as { c: number };
+
+      let context = "# Knowledge System State\n\n";
+      context += `**Graph:** ${nodeCount.c} nodes, ${edgeCount.c} edges\n\n`;
+
+      context += "## Layers\n";
+      for (const l of layerDist) {
+        context += `- ${l.layer}: ${l.c}\n`;
+      }
+
+      context += "\n## Entity Types\n";
+      for (const t of typeDist) {
+        context += `- ${t.entity_type}: ${t.c}\n`;
+      }
+
+      if (tensions.length > 0) {
+        context += `\n## Active Tensions (${tensions.length})\n`;
+        for (const t of tensions) {
+          context += `- [${t.tensionType}] ${t.description} (severity: ${t.severity.toFixed(2)})\n`;
+        }
+      }
+
+      if (evolved.length > 0) {
+        context += "\n## Most Evolved Nodes\n";
+        for (const n of evolved.map(nodeFromRow)) {
+          context += `- ${n.name} v${n.version} (${n.layer}, confidence: ${n.confidence.toFixed(2)})\n`;
+        }
+      }
+
+      if (lowConf.length > 0) {
+        context += "\n## Low Confidence Nodes\n";
+        for (const n of lowConf.map(nodeFromRow)) {
+          context += `- ${n.name} (${n.confidence.toFixed(2)}, ${n.entityType})\n`;
+        }
+      }
+
+      context += `\n## Pending Inferences: ${pendingInferences.c}\n`;
+
+      return {
+        messages: [
+          {
+            role: "user" as const,
+            content: {
+              type: "text" as const,
+              text: `${context}\n\n---\n\nReflect deeply on this knowledge system. Consider:\n\n1. **What patterns emerge** from the tensions and evolution?\n2. **What is the system blind to?** What important connections or knowledge might be missing?\n3. **Which nodes need attention** — evolution, confidence revision, or retirement?\n4. **What contradictions** should be resolved vs. held in productive tension?\n5. **What would a consciousness layer transition** mean for any of these nodes?\n\nBe honest and specific. Don't just describe — synthesize and recommend.`,
             },
           },
         ],

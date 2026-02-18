@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { hybridSearch, getIndexStats } from "../search/indexer.js";
 import { graphStore } from "../graph/store.js";
+import { getDatabase } from "../graph/database.js";
 import { generateSuggestions } from "../analytics/suggestions.js";
 import { RECORDS_ROOT, PATHS } from "../config.js";
 import { listMarkdownFiles, listSubdirectories } from "../utils/files.js";
@@ -169,6 +170,97 @@ export function registerIntelligenceTools(server: McpServer): void {
       output += `\n\n### Knowledge Graph\n- ${graphStats.entities} entities, ${graphStats.relations} relations`;
       if (graphStats.disconnectedEntities.length > 0) {
         output += `\n- Disconnected entities: ${graphStats.disconnectedEntities.join(", ")}`;
+      }
+
+      // Enhanced stats from SQLite
+      const db = getDatabase();
+
+      // Layer distribution
+      const layerDist = db
+        .prepare(
+          "SELECT layer, COUNT(*) as count FROM nodes GROUP BY layer ORDER BY count DESC",
+        )
+        .all() as Array<{ layer: string; count: number }>;
+      if (layerDist.length > 0) {
+        output += "\n\n### Layer Distribution\n";
+        for (const row of layerDist) {
+          output += `- ${row.layer}: ${row.count} nodes\n`;
+        }
+      }
+
+      // Evolution stats
+      const versionStats = db
+        .prepare(
+          "SELECT COUNT(DISTINCT node_id) as evolved_nodes, COUNT(*) as total_versions FROM node_versions",
+        )
+        .get() as { evolved_nodes: number; total_versions: number } | undefined;
+      if (versionStats !== undefined && versionStats.total_versions > 0) {
+        const mostEvolved = db
+          .prepare(
+            "SELECT n.name, n.version FROM nodes n WHERE n.version > 1 ORDER BY n.version DESC LIMIT 3",
+          )
+          .all() as Array<{ name: string; version: number }>;
+        output += `\n### Evolution\n- ${versionStats.evolved_nodes} nodes with version history (${versionStats.total_versions} total versions)\n`;
+        if (mostEvolved.length > 0) {
+          output += `- Most evolved: ${mostEvolved.map((n) => `${n.name} (v${n.version})`).join(", ")}\n`;
+        }
+      }
+
+      // Tension stats
+      const tensionStats = db
+        .prepare(
+          "SELECT status, COUNT(*) as count FROM tensions GROUP BY status",
+        )
+        .all() as Array<{ status: string; count: number }>;
+      if (tensionStats.length > 0) {
+        output += "\n### Tensions\n";
+        for (const row of tensionStats) {
+          output += `- ${row.status}: ${row.count}\n`;
+        }
+        const criticalCount = db
+          .prepare(
+            "SELECT COUNT(*) as count FROM tensions WHERE severity >= 0.8 AND status = 'active'",
+          )
+          .get() as { count: number };
+        if (criticalCount.count > 0) {
+          output += `- **${criticalCount.count} critical tensions need attention**\n`;
+        }
+      }
+
+      // Inference stats
+      const inferenceStats = db
+        .prepare(
+          "SELECT status, COUNT(*) as count FROM inferences GROUP BY status",
+        )
+        .all() as Array<{ status: string; count: number }>;
+      if (inferenceStats.length > 0) {
+        output += "\n### Inferences\n";
+        for (const row of inferenceStats) {
+          output += `- ${row.status}: ${row.count}\n`;
+        }
+      }
+
+      // Confidence overview
+      const confStats = db
+        .prepare(
+          "SELECT AVG(confidence) as avg_conf, MIN(confidence) as min_conf, COUNT(CASE WHEN confidence < 0.3 THEN 1 END) as low_conf_count FROM nodes",
+        )
+        .get() as
+        | {
+            avg_conf: number | null;
+            min_conf: number | null;
+            low_conf_count: number;
+          }
+        | undefined;
+      if (
+        confStats !== undefined &&
+        confStats.avg_conf !== null &&
+        confStats.min_conf !== null
+      ) {
+        output += `\n### Confidence Overview\n- Average: ${confStats.avg_conf.toFixed(2)}, Minimum: ${confStats.min_conf.toFixed(2)}\n`;
+        if (confStats.low_conf_count > 0) {
+          output += `- ${confStats.low_conf_count} nodes with low confidence (< 0.3)\n`;
+        }
       }
 
       output += `\n\n### Search Index\n- ${indexStats.totalChunks} chunks indexed\n- Last rebuilt: ${indexStats.lastRebuilt === "" ? "Not yet built" : indexStats.lastRebuilt}`;

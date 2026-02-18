@@ -12,6 +12,16 @@ const entityTypeEnum = z.enum([
   "person",
   "client",
   "technology",
+  "identity",
+  "philosophy",
+  "anti-pattern",
+  "outcome",
+  "lesson",
+  "tension",
+  "question",
+  "experiment",
+  "context",
+  "influence",
 ]);
 
 const relationTypeEnum = z.enum([
@@ -23,6 +33,16 @@ const relationTypeEnum = z.enum([
   "supports",
   "depends-on",
   "evolved-from",
+  "tensions-with",
+  "led-to",
+  "learned-from",
+  "applies-to",
+  "resulted-in",
+  "guides",
+  "violates",
+  "reinforces",
+  "challenges",
+  "co-occurs-with",
 ]);
 
 export function registerGraphTools(server: McpServer): void {
