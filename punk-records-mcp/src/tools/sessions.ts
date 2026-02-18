@@ -69,7 +69,8 @@ export function registerSessionTools(server: McpServer): void {
       title: "Record Event",
       description:
         "Record a significant event during the session: decision, problem, lesson, " +
-        "question, blocker, task completion, breakthrough. Builds the project's memory.",
+        "question, blocker, task completion, breakthrough. Builds the project's memory. " +
+        "If no session is active, auto-starts one using project or cwd.",
       inputSchema: z.object({
         event_type: z
           .enum([
@@ -101,14 +102,28 @@ export function registerSessionTools(server: McpServer): void {
           .record(z.string())
           .optional()
           .describe("Additional context (e.g. why, alternatives, severity)"),
+        project: z
+          .string()
+          .optional()
+          .describe("Project slug — used to auto-start session if none active"),
+        cwd: z
+          .string()
+          .optional()
+          .describe(
+            "Current working directory — used to auto-detect project if no session active",
+          ),
       }),
     },
-    async ({ event_type, description, details }) => {
+    async ({ event_type, description, details, project, cwd }) => {
       const start = Date.now();
-      const event = await sessionManager.recordEvent(event_type, {
-        description,
-        ...details,
-      });
+      const fallbackProject =
+        project ?? (cwd !== undefined ? slugFromPath(cwd) : undefined);
+      const event = await sessionManager.recordEvent(
+        event_type,
+        { description, ...details },
+        0.9,
+        fallbackProject,
+      );
 
       queryLogger.log({
         timestamp: new Date().toISOString(),

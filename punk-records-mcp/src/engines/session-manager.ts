@@ -185,39 +185,52 @@ class SessionManager {
 
   /**
    * Record a significant event during the active session.
+   * If no session is active, auto-begins one for the given project.
    */
   async recordEvent(
     eventType: EventType,
     data: Record<string, unknown>,
     confidence: number = 0.9,
+    project?: string,
   ): Promise<TimelineEvent> {
     if (this.activeSession === null) {
-      throw new Error("No active session. Call beginSession first.");
+      if (project !== undefined) {
+        await this.beginSession(project);
+      } else {
+        throw new Error(
+          "No active session. Call beginSession first or pass a project.",
+        );
+      }
     }
+
+    // Safe to assert: either activeSession was already set, or beginSession above set it
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const session = this.activeSession!;
 
     const event: TimelineEvent = {
       id: generateId("evt"),
       ts: new Date().toISOString(),
-      sessionId: this.activeSession.id,
+      sessionId: session.id,
       event: eventType,
       data,
       confidence,
     };
 
-    this.activeSession.events.push(event);
+    session.events.push(event);
 
     // Append to timeline immediately (crash safety)
-    await this.appendToTimeline(this.activeSession.project, event);
+    await this.appendToTimeline(session.project, event);
 
     return event;
   }
 
   /**
    * End the current session. Extracts insights, saves record, updates state.
+   * Returns gracefully if no session is active.
    */
   async endSession(summary?: string, pendingWork?: string[]): Promise<string> {
     if (this.activeSession === null) {
-      throw new Error("No active session to end.");
+      return "No active session to end. Events recorded during this conversation were already persisted individually.";
     }
 
     // Record session end
