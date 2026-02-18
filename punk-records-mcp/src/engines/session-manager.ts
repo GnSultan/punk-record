@@ -3,6 +3,7 @@ import fsp from "node:fs/promises";
 import path from "node:path";
 import { PATHS } from "../config.js";
 import { ensureDir } from "../utils/files.js";
+import { readMarkdownFileIfExists } from "../utils/markdown.js";
 
 // --- Types ---
 
@@ -180,7 +181,10 @@ class SessionManager {
       continuingFrom: state.lastSession?.id ?? null,
     });
 
-    return this.formatSessionContext(state);
+    // Load core knowledge — the brain
+    const coreContext = await this.loadCoreKnowledge();
+
+    return coreContext + this.formatSessionContext(state);
   }
 
   /**
@@ -397,6 +401,31 @@ class SessionManager {
   }
 
   // --- Private helpers ---
+
+  private async loadCoreKnowledge(): Promise<string> {
+    const corePath = PATHS.core;
+    const essentials = ["identity.md", "philosophy.md", "anti-patterns.md"];
+    const sections: string[] = [];
+
+    for (const file of essentials) {
+      const doc = await readMarkdownFileIfExists(path.join(corePath, file));
+      if (doc !== null && doc.content.trim().length > 0) {
+        sections.push(`### ${doc.title}\n${doc.content.trim()}`);
+      }
+    }
+
+    // Current focus
+    const focus = await readMarkdownFileIfExists(
+      path.join(PATHS.active, "current-focus.md"),
+    );
+    if (focus !== null && focus.content.trim().length > 0) {
+      sections.push(`### Current Focus\n${focus.content.trim()}`);
+    }
+
+    if (sections.length === 0) return "";
+
+    return `## Core Knowledge\n\n${sections.join("\n\n")}\n\n---\n\n`;
+  }
 
   private async loadOrCreateState(project: string): Promise<ProjectState> {
     const sp = statePath(project);
