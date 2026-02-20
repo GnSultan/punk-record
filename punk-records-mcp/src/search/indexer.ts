@@ -38,14 +38,20 @@ export async function initializeSearchIndex(): Promise<void> {
 
   try {
     const serialized = await fs.readFile(DATA_FILES.searchIndex, "utf-8");
-    const data = JSON.parse(serialized) as string;
-    db = await restore("json", data);
+    db = await restore("json", serialized);
     const totalChunks = count(db);
-    console.error(`Search index restored from disk (${totalChunks} chunks)`);
-    lastBuilt = new Date().toISOString();
-    indexBuilt = totalChunks > 0;
-    await rebuildChunkMap();
-    return;
+    if (totalChunks > 0) {
+      console.error(
+        `Search index restored from disk (${totalChunks} chunks)`,
+      );
+      lastBuilt = new Date().toISOString();
+      indexBuilt = true;
+      await rebuildChunkMap();
+      return;
+    }
+    console.error(
+      "Search index file was empty, will build on first search.",
+    );
   } catch {
     console.error(
       "No existing search index found, will build on first search.",
@@ -113,10 +119,10 @@ export async function buildFullIndex(): Promise<void> {
 export async function persistIndex(): Promise<void> {
   if (db === null) return;
   try {
-    const serialized = persist(db, "json");
+    const serialized = await persist(db, "json");
     await fs.writeFile(
       DATA_FILES.searchIndex,
-      JSON.stringify(serialized),
+      serialized as string,
       "utf-8",
     );
   } catch (err) {
