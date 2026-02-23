@@ -11,7 +11,7 @@ Punk Records isn't just storage — it's structured memory that mirrors how you 
 
 ## Directory Structure
 
-```
+``` 
 punk-records/
 ├── core/
 │   ├── identity.md          # Who you are, your "why"

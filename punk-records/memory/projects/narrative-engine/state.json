@@ -1,0 +1,23 @@
+{
+  "project": "narrative-engine",
+  "displayName": "narrative-engine",
+  "created": "2026-02-22T18:09:38.656Z",
+  "phase": "planning",
+  "health": "green",
+  "totalSessions": 0,
+  "lastSession": null,
+  "currentFocus": "",
+  "activeTask": null,
+  "pendingWork": [],
+  "blockers": [],
+  "openQuestions": [],
+  "recentDecisions": [],
+  "recentProblems": [],
+  "recentLessons": [],
+  "techStack": {},
+  "keyFiles": [],
+  "workPatterns": {
+    "avgSessionLength": 0,
+    "commonBlockers": []
+  }
+}
