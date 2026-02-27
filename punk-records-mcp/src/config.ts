@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const RECORDS_ROOT = path.resolve(__dirname, "../../punk-records");
-export const DATA_ROOT = path.resolve(__dirname, "../data");
+export const DATA_ROOT = path.resolve(RECORDS_ROOT, ".brain");
 
 export const PATHS = {
   core: path.join(RECORDS_ROOT, "core"),

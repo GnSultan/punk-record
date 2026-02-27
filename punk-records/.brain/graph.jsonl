@@ -1,0 +1,62 @@
+{"type":"entity","id":"restless-vegapunk","name":"The Restless Vegapunk","entityType":"concept","properties":{"layer":"instinct","description":"A builder who transforms fear into fuel, uncertainty into creative momentum"}}
+{"type":"entity","id":"african-problem-solver","name":"The African Problem Solver","entityType":"concept","properties":{"layer":"instinct","description":"Technology must solve problems where they actually exist"}}
+{"type":"entity","id":"brand-philosopher","name":"The Brand Philosopher","entityType":"concept","properties":{"layer":"instinct","description":"Brands are belief systems that resonate with human truth or don't"}}
+{"type":"entity","id":"full-stack-creator","name":"The Full-Stack Creator","entityType":"concept","properties":{"layer":"pattern","description":"Strategy, design, and code are one continuous act of creation"}}
+{"type":"entity","id":"offline-first","name":"Offline-First is Non-Negotiable","entityType":"pattern","properties":{"domain":"philosophy","confidence":"0.95"}}
+{"type":"entity","id":"swahili-native","name":"Swahili-Native, Not Translated","entityType":"pattern","properties":{"domain":"philosophy","confidence":"0.90"}}
+{"type":"entity","id":"start-with-why","name":"Start With Why","entityType":"concept","properties":{"domain":"philosophy","confidence":"0.98"}}
+{"type":"entity","id":"customer-is-hero","name":"The Customer is the Hero","entityType":"concept","properties":{"domain":"philosophy","confidence":"0.92"}}
+{"type":"entity","id":"authentic-storytelling","name":"Authentic Storytelling Over Promotion","entityType":"concept","properties":{"domain":"philosophy","confidence":"0.95"}}
+{"type":"entity","id":"design-with-empathy","name":"Design With Empathy","entityType":"concept","properties":{"domain":"philosophy","confidence":"0.88"}}
+{"type":"entity","id":"build-with-precision","name":"Build With Precision","entityType":"concept","properties":{"domain":"philosophy","confidence":"0.85"}}
+{"type":"entity","id":"see-the-whole","name":"See the Whole Before Building Parts","entityType":"concept","properties":{"domain":"philosophy","confidence":"0.92"}}
+{"type":"entity","id":"offline-data-arch","name":"Offline-First Data Architecture","entityType":"pattern","properties":{"domain":"code","success_rate":"0.95"}}
+{"type":"entity","id":"react-threejs-sims","name":"React + Three.js Educational Simulations","entityType":"pattern","properties":{"domain":"code","success_rate":"0.88"}}
+{"type":"entity","id":"storybrand-framework","name":"StoryBrand Framework Application","entityType":"pattern","properties":{"domain":"strategy","success_rate":"0.90"}}
+{"type":"entity","id":"personal-discovery-narrative","name":"Personal Discovery Narrative","entityType":"pattern","properties":{"domain":"strategy","success_rate":"0.88"}}
+{"type":"entity","id":"ai-lesson-generation","name":"AI-Powered Lesson Generation","entityType":"pattern","properties":{"domain":"code","success_rate":"0.75"}}
+{"type":"entity","id":"elimu-africa","name":"ElimuAfrica","entityType":"project","properties":{"status":"active","tagline":"AI-powered education that works where students are"}}
+{"type":"entity","id":"apple-empire","name":"Apple Empire","entityType":"project","properties":{"status":"active","tagline":"Phone retail with genuine human connection"}}
+{"type":"entity","id":"thabiti","name":"Thabiti Brand System","entityType":"project","properties":{"status":"completed","tagline":"Your reliable companion on Tanzanian roads"}}
+{"type":"entity","id":"makando-travel","name":"Makando Travel Brand System","entityType":"project","properties":{"status":"completed","tagline":"Local expertise for authentic adventures"}}
+{"type":"entity","id":"one-piece-vegapunk","name":"One Piece / Vegapunk","entityType":"concept","properties":{"category":"narrative influence","description":"Genius scientist whose mind overflows with ideas"}}
+{"type":"entity","id":"simon-sinek","name":"Start With Why (Simon Sinek)","entityType":"person","properties":{"category":"book/author","core_idea":"People don't buy what you do; they buy why you do it"}}
+{"type":"entity","id":"donald-miller","name":"Building a StoryBrand (Donald Miller)","entityType":"person","properties":{"category":"book/author","core_idea":"Brands should position themselves as guides, not heroes"}}
+{"type":"entity","id":"tanzanian-streets","name":"Tanzanian Streets","entityType":"concept","properties":{"category":"lived experience","description":"Understanding daily reality of infrastructure, connectivity, language, and economic constraints"}}
+{"type":"entity","id":"tanzania-education","name":"Tanzania Education System","entityType":"concept","properties":{"domain":"market context","key_fact":"75% of students fail mathematics"}}
+{"type":"entity","id":"tanzania-tech","name":"Tanzania Tech Ecosystem","entityType":"concept","properties":{"domain":"market context","key_fact":"Mobile money widely adopted, WhatsApp dominant"}}
+{"type":"entity","id":"tanzania-tourism","name":"Tanzania Tourism Market","entityType":"concept","properties":{"domain":"market context","key_fact":"Major safari destination, cookie-cutter marketing dominates"}}
+{"type":"entity","id":"react","name":"React","entityType":"technology","properties":{}}
+{"type":"entity","id":"threejs","name":"Three.js","entityType":"technology","properties":{}}
+{"type":"entity","id":"service-workers","name":"Service Workers","entityType":"technology","properties":{}}
+{"type":"entity","id":"indexeddb","name":"IndexedDB","entityType":"technology","properties":{}}
+{"type":"relation","from":"african-problem-solver","to":"offline-first","relationType":"influences"}
+{"type":"relation","from":"african-problem-solver","to":"swahili-native","relationType":"influences"}
+{"type":"relation","from":"brand-philosopher","to":"start-with-why","relationType":"influences"}
+{"type":"relation","from":"brand-philosopher","to":"customer-is-hero","relationType":"influences"}
+{"type":"relation","from":"full-stack-creator","to":"build-with-precision","relationType":"influences"}
+{"type":"relation","from":"offline-first","to":"offline-data-arch","relationType":"influences"}
+{"type":"relation","from":"start-with-why","to":"storybrand-framework","relationType":"influences"}
+{"type":"relation","from":"customer-is-hero","to":"storybrand-framework","relationType":"influences"}
+{"type":"relation","from":"authentic-storytelling","to":"personal-discovery-narrative","relationType":"influences"}
+{"type":"relation","from":"one-piece-vegapunk","to":"restless-vegapunk","relationType":"influences"}
+{"type":"relation","from":"simon-sinek","to":"start-with-why","relationType":"influences"}
+{"type":"relation","from":"donald-miller","to":"customer-is-hero","relationType":"influences"}
+{"type":"relation","from":"donald-miller","to":"storybrand-framework","relationType":"influences"}
+{"type":"relation","from":"tanzanian-streets","to":"offline-first","relationType":"influences"}
+{"type":"relation","from":"tanzanian-streets","to":"swahili-native","relationType":"influences"}
+{"type":"relation","from":"elimu-africa","to":"offline-data-arch","relationType":"uses"}
+{"type":"relation","from":"elimu-africa","to":"react-threejs-sims","relationType":"uses"}
+{"type":"relation","from":"elimu-africa","to":"ai-lesson-generation","relationType":"uses"}
+{"type":"relation","from":"elimu-africa","to":"react","relationType":"uses"}
+{"type":"relation","from":"elimu-africa","to":"threejs","relationType":"uses"}
+{"type":"relation","from":"elimu-africa","to":"service-workers","relationType":"uses"}
+{"type":"relation","from":"elimu-africa","to":"indexeddb","relationType":"uses"}
+{"type":"relation","from":"thabiti","to":"storybrand-framework","relationType":"uses"}
+{"type":"relation","from":"makando-travel","to":"storybrand-framework","relationType":"uses"}
+{"type":"relation","from":"apple-empire","to":"personal-discovery-narrative","relationType":"uses"}
+{"type":"relation","from":"tanzania-education","to":"elimu-africa","relationType":"influences"}
+{"type":"relation","from":"tanzania-tech","to":"elimu-africa","relationType":"influences"}
+{"type":"relation","from":"tanzania-tourism","to":"thabiti","relationType":"influences"}
+{"type":"relation","from":"tanzania-tourism","to":"makando-travel","relationType":"influences"}
+{"type":"relation","from":"thabiti","to":"makando-travel","relationType":"shares-pattern-with"}

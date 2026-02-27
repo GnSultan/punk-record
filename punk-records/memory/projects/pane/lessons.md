@@ -75,3 +75,13 @@ updated: "2026-02-23"
 **Tags:** notes-analysis, lost-session, reconstruction, design-decisions, bugs, performance
 
 ---
+
+### 2026-02-23 — Terminal UI should follow the same pattern as conversation UI - scrollable output at top, input at bottom. The $ prompt must be aligned WITH the command input, not separate. Shortcuts only shown when terminal is empty and centered. No xterm.js dependency needed.
+
+**Lesson:** Terminal UI should follow the same pattern as conversation UI - scrollable output at top, input at bottom. The $ prompt must be aligned WITH the command input, not separate. Shortcuts only shown when terminal is empty and centered. No xterm.js dependency needed.
+
+**Context:** After multiple design iterations, learned that Pane's minimal design philosophy requires: (1) input areas focused on input only, (2) visual elements unified not separated, (3) consistency across all modes (conversation/viewer/terminal), (4) custom implementation over generic libraries
+
+**Tags:** design, terminal, ui-patterns, minimal
+
+---

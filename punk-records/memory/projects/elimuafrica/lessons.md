@@ -3,7 +3,7 @@ title: "ElimuAfrica Lessons"
 domain: "memory"
 tags: ["elimuafrica", "lessons", "learning", "mistakes"]
 created: "2023-01-01"
-updated: "2026-02-17"
+updated: "2026-02-25"
 ---
 
 # ElimuAfrica — Lessons Learned
@@ -45,5 +45,25 @@ updated: "2026-02-17"
 **Context:** Found that LLMs occasionally generate mathematically incorrect solutions, especially for multi-step problems. Need systematic validation — student outcome data as a lagging indicator, spot-checks as leading indicator. Can't rely on prompts alone.
 
 **Tags:** ai, quality, content-generation
+
+---
+
+### 2026-02-25 — Toast notifications should follow the same "customer is the hero" principle as brand messaging. Students don't care about network state — they care about learning. Every toast should answer the question: "did the thing I just did work?" If the student didn't do anything, there should be no toast. System-noise toasts (offline indicators, loading failures, sync status) are the app talking about itself — remove them entirely and use persistent UI elements (badges, indicators) for background state.
+
+**Lesson:** Toast notifications should follow the same "customer is the hero" principle as brand messaging. Students don't care about network state — they care about learning. Every toast should answer the question: "did the thing I just did work?" If the student didn't do anything, there should be no toast. System-noise toasts (offline indicators, loading failures, sync status) are the app talking about itself — remove them entirely and use persistent UI elements (badges, indicators) for background state.
+
+**Context:** Audited 44 toast calls across 16 student-facing files. Found that 26/44 (59%) were system noise — network errors, offline mode indicators, sync status messages. These created an endless pile of toasts when offline, violating the offline-first philosophy. Removing them and relying on the OfflineIndicator badge creates a silent, invisible infrastructure that just works.
+
+**Tags:** ux, offline-first, notifications, philosophy, student-experience
+
+---
+
+### 2026-02-25 — Offline-first means checking offline status BEFORE attempting network calls, not just having a fallback after timeout
+
+**Lesson:** Offline-first means checking offline status BEFORE attempting network calls, not just having a fallback after timeout
+
+**Context:** AdaptiveLessonPlayer had perfect offline fallback logic (load from IndexedDB) but it only ran after waiting 30-60s for network timeout. The right pattern: check navigator.onLine first, skip API entirely when offline. LessonSequencePlayer and NeuralTutorPlayer already did this correctly.
+
+**Tags:** offline-first, network-timeout, ux, architecture-pattern
 
 ---

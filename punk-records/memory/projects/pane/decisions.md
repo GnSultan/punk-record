@@ -1,7 +1,7 @@
 ---
 title: "decisions"
 created: "2026-02-22"
-updated: "2026-02-22"
+updated: "2026-02-23"
 ---
 
 # decisions
@@ -123,5 +123,15 @@ updated: "2026-02-22"
 **Reasoning:** Core mission for Pane is "light, speed, fast building minimal environment". Ditched Tauri specifically because it didn't support 120Hz/ProMotion displays on Apple silicon. User has ProMotion MacBook and the lack of 120Hz support "didn't feel quite right" - smoothness and responsiveness are critical to the minimal/focused IDE experience. This was non-negotiable despite Tauri's other benefits.
 
 **Tags:** architecture, electron, tauri, performance, ux
+
+---
+
+### 2026-02-23 — Project removal persistence bug has been fixed by removing the `if (projectOrder.length === 0) return;` guard from useSettingsPersistence.ts
+
+**Decision:** Project removal persistence bug has been fixed by removing the `if (projectOrder.length === 0) return;` guard from useSettingsPersistence.ts
+
+**Reasoning:** The guard was preventing saves when all projects were removed, treating it as an error state. Now only `settingsLoaded` check exists, which correctly distinguishes between "stores not loaded yet" (don't save) and "user removed all projects" (save empty state). This allows Pane to properly persist when users close all projects.
+
+**Tags:** bug-fix, persistence, settings, electron
 
 ---
