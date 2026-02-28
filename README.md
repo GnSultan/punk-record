@@ -140,13 +140,19 @@ The brain:
 `punk-records/` lives in `~/punk-records`, outside this repo. This repo only contains the MCP server code (public). The data stays private.
 
 **Backups:**
-- **Automatic:** After every session ends (throttled to max once/hour)
+- **Automatic:** Daily at 12:00 PM (via launchd)
 - **Local:** `.brain/backups/` (keeps 7 most recent)
 - **Cloud:** Cloudflare R2 with tiered retention
   - Last 24h: keep all
   - Last 7 days: 1 per day
   - Last 30 days: 1 per week
   - Older: delete
+
+**Setup automatic backups:**
+```bash
+cd punk-records-mcp
+./setup-backup-cron.sh
+```
 
 **Manual backup:**
 ```bash
@@ -155,6 +161,8 @@ npm run backup
 ```
 
 Creates timestamped `.tar.gz` of `.brain/` directory (excludes cache), stores locally, uploads to R2 if configured.
+
+**Logs:** `~/punk-records/.brain/backup.log`
 
 **Restore:**
 Download from R2 or use local backup, extract to `.brain/`. The backup script handles this.
