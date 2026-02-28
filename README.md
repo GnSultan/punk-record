@@ -158,15 +158,15 @@ Creates timestamped `.tar.gz` of entire `.brain/` directory, stores locally, upl
 **Restore:**
 Download from R2 or use local backup, extract to `.brain/`. The backup script handles this.
 
-**R2 config** (optional, in `.env`):
+**R2 config** (optional, in `punk-records-mcp/.env`):
 ```bash
 R2_ACCOUNT_ID=your-account-id
 R2_ACCESS_KEY_ID=your-access-key
 R2_SECRET_ACCESS_KEY=your-secret-key
-R2_BUCKET_NAME=punk-records-backups
+R2_BUCKET_NAME=pulse-backups  # or your own bucket
 ```
 
-If R2 isn't configured, local backups still work.
+See `.env.example` for template. If R2 isn't configured, local backups still work (7 most recent kept in `.brain/backups/`).
 
 ---
 

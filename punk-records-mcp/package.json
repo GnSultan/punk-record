@@ -22,6 +22,7 @@
     "@orama/plugin-data-persistence": "^3.1.0",
     "better-sqlite3": "^12.6.2",
     "chokidar": "^4.0.3",
+    "dotenv": "^17.3.1",
     "gray-matter": "^4.0.3",
     "tar": "^7.4.3",
     "zod": "^3.23.8"
@@ -30,7 +31,6 @@
     "@eslint/js": "^10.0.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.0.0",
-    "@types/tar": "^6.1.14",
     "commit-and-tag-version": "^12.6.1",
     "eslint": "^10.0.0",
     "tsx": "^4.19.0",

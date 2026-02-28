@@ -13,6 +13,7 @@
  * Restore: Downloads from cloud if needed, validates, extracts to .brain/
  */
 
+import 'dotenv/config';
 import { mkdirSync, readdirSync, unlinkSync, existsSync, statSync, createReadStream, createWriteStream } from 'fs';
 import { join, basename } from 'path';
 import { createGzip, createGunzip } from 'zlib';
@@ -75,14 +76,20 @@ export async function backupBrain(): Promise<string> {
   const backupFile = `punk-records-${timestamp}.tar.gz`;
   const backupPath = join(backupsDir, backupFile);
 
-  // Create tar.gz of .brain/ (excluding backups/ subdirectory)
+  // Create tar.gz of .brain/ (excluding backups/ subdirectory and cache)
   const tar = await import('tar');
   await tar.create(
     {
       gzip: true,
       file: backupPath,
       cwd: DATA_ROOT,
-      filter: (path) => !path.startsWith('backups/'),
+      sync: true,
+      filter: (path) => {
+        // Exclude backups directory, its contents, and cache (models are large and downloadable)
+        if (path === '.' || path === './') return true;
+        const normalized = path.replace(/^\.\//, '');
+        return !normalized.startsWith('backups') && !normalized.startsWith('.cache');
+      },
     },
     ['.']
   );
