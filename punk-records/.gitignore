@@ -1,3 +1,0 @@
-# Only exclude regenerable cache (downloaded models)
-# Everything else in .brain/ is versioned knowledge that must be preserved
-.brain/.cache/

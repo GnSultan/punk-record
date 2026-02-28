@@ -5,3 +5,8 @@ dist/
 *.swp
 *.swo
 *~
+.cache/
+
+# Private data (lives in ~/punk-records, outside this repo)
+# This repo only contains the MCP server code
+punk-records/

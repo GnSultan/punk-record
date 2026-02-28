@@ -4,7 +4,9 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export const RECORDS_ROOT = path.resolve(__dirname, "../../punk-records");
+// RECORDS_ROOT now points to ~/punk-records (outside this repo)
+// This keeps private data separate from the public MCP server code
+export const RECORDS_ROOT = path.resolve(process.env.HOME || "/Users/macbook", "punk-records");
 export const DATA_ROOT = path.resolve(RECORDS_ROOT, ".brain");
 
 export const PATHS = {

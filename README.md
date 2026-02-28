@@ -90,7 +90,7 @@ The markdown files are what I write. The `.brain/` directory is what the system 
 
 **`query-log.jsonl`** — Every search query. The system learns from what I ask for and surfaces related knowledge proactively.
 
-This intelligence can't be regenerated. It's learned, not derived. That's why it's version controlled.
+This intelligence can't be regenerated. It's learned, not derived. That's why it's backed up to R2.
 
 ---
 
@@ -135,11 +135,38 @@ The brain:
 
 ## Backup Strategy
 
-Git. Every commit preserves the brain's full state.
+**Local + Cloud.** Not git — the knowledge is private.
 
-The intelligence layer (`.brain/`) is version controlled because it's learned knowledge that grows over time. If my Mac dies, I clone the repo and the brain is intact — all decisions, all lessons, all search intelligence.
+`punk-records/` lives in `~/punk-records`, outside this repo. This repo only contains the MCP server code (public). The data stays private.
 
-Only `.brain/.cache/` (downloaded embedding models, 23MB) is gitignored. Those can be re-downloaded.
+**Backups:**
+- Local: `.brain/backups/` (keeps 7 most recent)
+- Cloud: Cloudflare R2 with tiered retention
+  - Last 24h: keep all
+  - Last 7 days: 1 per day
+  - Last 30 days: 1 per week
+  - Older: delete
+
+**Run backup:**
+```bash
+cd punk-records-mcp
+npm run backup
+```
+
+Creates timestamped `.tar.gz` of entire `.brain/` directory, stores locally, uploads to R2 if configured.
+
+**Restore:**
+Download from R2 or use local backup, extract to `.brain/`. The backup script handles this.
+
+**R2 config** (optional, in `.env`):
+```bash
+R2_ACCOUNT_ID=your-account-id
+R2_ACCESS_KEY_ID=your-access-key
+R2_SECRET_ACCESS_KEY=your-secret-key
+R2_BUCKET_NAME=punk-records-backups
+```
+
+If R2 isn't configured, local backups still work.
 
 ---
 
@@ -194,7 +221,7 @@ The brain gets smarter without me having to think about it.
 
 **Build with precision:** Extract only what matters — decisions, lessons, problems. Not tech stack, not file lists. Intelligence, not inventory.
 
-**Refuse to play safe:** Version-controlling a 10MB search index feels heavy. Doing it anyway because the intelligence is too valuable to lose.
+**Refuse to play safe:** The knowledge is private, but the intelligence is too valuable to lose. Local + cloud backups, not git.
 
 ---
 
