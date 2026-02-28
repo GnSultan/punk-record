@@ -5,7 +5,7 @@ PLIST_NAME="com.punkrecords.backup.plist"
 PLIST_SRC="$(pwd)/$PLIST_NAME"
 PLIST_DEST="$HOME/Library/LaunchAgents/$PLIST_NAME"
 
-echo "Setting up daily backup cron job (runs at 12:00 daily)..."
+echo "Setting up daily backup cron job (runs at 12:00 AM daily)..."
 
 # Copy plist to LaunchAgents
 cp "$PLIST_SRC" "$PLIST_DEST"
@@ -20,7 +20,7 @@ echo "✓ Loaded backup job"
 if launchctl list | grep -q "com.punkrecords.backup"; then
     echo "✓ Backup job is running"
     echo ""
-    echo "Backups will run daily at 12:00 PM"
+    echo "Backups will run daily at 12:00 AM (midnight)"
     echo "Logs: ~/punk-records/.brain/backup.log"
     echo ""
     echo "To test manually: npm run backup"

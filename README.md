@@ -140,7 +140,7 @@ The brain:
 `punk-records/` lives in `~/punk-records`, outside this repo. This repo only contains the MCP server code (public). The data stays private.
 
 **Backups:**
-- **Automatic:** Daily at 12:00 PM (via launchd)
+- **Automatic:** Daily at 12:00 AM / midnight (via launchd)
 - **Local:** `.brain/backups/` (keeps 7 most recent)
 - **Cloud:** Cloudflare R2 with tiered retention
   - Last 24h: keep all
