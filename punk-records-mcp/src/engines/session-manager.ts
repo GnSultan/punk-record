@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
-import { PATHS } from "../config.js";
+import { PATHS, DATA_ROOT } from "../config.js";
 import { ensureDir } from "../utils/files.js";
 import { readMarkdownFileIfExists } from "../utils/markdown.js";
 import { indexFile } from "../search/indexer.js";
@@ -161,6 +161,60 @@ function extractedDir(project: string): string {
 
 class SessionManager {
   private activeSession: ActiveSession | null = null;
+  private activeSessionFile = path.join(DATA_ROOT, ".active-session.json");
+
+  constructor() {
+    // Restore active session on startup
+    this.restoreActiveSession();
+  }
+
+  /**
+   * Restore active session from disk if it exists and is recent (< 24h old)
+   */
+  private restoreActiveSession(): void {
+    try {
+      if (fs.existsSync(this.activeSessionFile)) {
+        const data = fs.readFileSync(this.activeSessionFile, "utf-8");
+        const session = JSON.parse(data) as ActiveSession;
+
+        // Only restore if session is less than 24 hours old
+        const sessionAge = Date.now() - new Date(session.started).getTime();
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+
+        if (sessionAge < twentyFourHours) {
+          this.activeSession = session;
+          console.error(`[session-manager] Restored active session: ${session.project} (${session.id})`);
+        } else {
+          // Session too old, delete it
+          fs.unlinkSync(this.activeSessionFile);
+        }
+      }
+    } catch (err) {
+      console.error("[session-manager] Failed to restore active session:", err);
+    }
+  }
+
+  /**
+   * Save active session to disk
+   */
+  private saveActiveSession(): void {
+    try {
+      if (this.activeSession) {
+        fs.writeFileSync(
+          this.activeSessionFile,
+          JSON.stringify(this.activeSession, null, 2),
+          "utf-8"
+        );
+      } else {
+        // No active session, remove the file
+        if (fs.existsSync(this.activeSessionFile)) {
+          fs.unlinkSync(this.activeSessionFile);
+        }
+      }
+    } catch (err) {
+      console.error("[session-manager] Failed to save active session:", err);
+    }
+  }
 
   /**
    * Start a work session on a project. Returns full context for Claude.
@@ -181,6 +235,9 @@ class SessionManager {
       goal: this.activeSession.initialGoal,
       continuingFrom: state.lastSession?.id ?? null,
     });
+
+    // Save session to disk
+    this.saveActiveSession();
 
     // Load core knowledge — the brain
     const coreContext = await this.loadCoreKnowledge();
@@ -225,6 +282,9 @@ class SessionManager {
 
     // Append to timeline immediately (crash safety)
     await this.appendToTimeline(session.project, event);
+
+    // Save session to disk (persist across restarts)
+    this.saveActiveSession();
 
     return event;
   }
@@ -280,6 +340,9 @@ class SessionManager {
     // Format summary
     const output = this.formatSessionSummary(record);
     this.activeSession = null;
+
+    // Clear persisted session file
+    this.saveActiveSession();
 
     return output;
   }
