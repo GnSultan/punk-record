@@ -616,27 +616,82 @@ class SessionManager {
   }
 
   private async updateExtractedDocs(project: string): Promise<void> {
-    const dir = extractedDir(project);
+    const dir = projectDir(project);
     await ensureDir(dir);
 
     const sessions = await this.loadAllSessions(project);
+    const timeline = await this.loadTimeline(project);
 
-    // decisions.md
-    const allDecisions = sessions.flatMap((s) => s.decisions);
-    if (allDecisions.length > 0) {
-      let md = "# Decisions\n\n*Auto-maintained by Session Observer*\n\n";
-      for (const d of allDecisions) {
-        md += `## ${d.what}\n- **Date:** ${d.date}\n- **Why:** ${d.why}\n- **Confidence:** ${d.confidence}\n\n`;
+    // decisions.md — Rich format with why, alternatives, context
+    const decisionEvents = timeline.filter((e) => e.event === "decision");
+    if (decisionEvents.length > 0) {
+      let md = `---
+title: "${project} Decisions"
+domain: "memory"
+tags: ["${project}", "decisions"]
+auto_generated: true
+updated: "${new Date().toISOString().slice(0, 10)}"
+---
+
+# ${project} — Decisions
+
+*Auto-maintained from session timeline. Each decision captures what was chosen and why.*
+
+---
+
+`;
+      for (const e of decisionEvents) {
+        const date = e.ts.slice(0, 10);
+        const what = str(e.data.description) || str(e.data.what);
+        const why = str(e.data.why) || str(e.data.reasoning);
+        const alternatives = str(e.data.alternatives) || str(e.data.alternatives_rejected);
+
+        md += `### ${date} — ${what}\n\n`;
+        md += `**Why:** ${why}\n\n`;
+        if (alternatives) {
+          md += `**Alternatives considered:** ${alternatives}\n\n`;
+        }
+        md += `---\n\n`;
       }
       await fsp.writeFile(path.join(dir, "decisions.md"), md, "utf-8");
     }
 
-    // lessons.md
-    const allLessons = sessions.flatMap((s) => s.lessons);
-    if (allLessons.length > 0) {
-      let md = "# Lessons Learned\n\n*Auto-maintained by Session Observer*\n\n";
-      for (const l of allLessons) {
-        md += `- ${l}\n`;
+    // lessons.md — Rich format with context, what was learned
+    const lessonEvents = timeline.filter((e) => e.event === "lesson_learned");
+    if (lessonEvents.length > 0) {
+      let md = `---
+title: "${project} Lessons"
+domain: "memory"
+tags: ["${project}", "lessons"]
+auto_generated: true
+updated: "${new Date().toISOString().slice(0, 10)}"
+---
+
+# ${project} — Lessons Learned
+
+*Auto-maintained from session timeline. Non-obvious discoveries and mistakes that taught something.*
+
+---
+
+`;
+      for (const e of lessonEvents) {
+        const date = e.ts.slice(0, 10);
+        const lesson = str(e.data.description) || str(e.data.lesson);
+        const context = str(e.data.context);
+        const whatWorks = str(e.data.what_works);
+        const gap = str(e.data.gap) || str(e.data.critical_gaps);
+
+        md += `### ${date} — ${lesson}\n\n`;
+        if (context) {
+          md += `**Context:** ${context}\n\n`;
+        }
+        if (whatWorks) {
+          md += `**What works:** ${whatWorks}\n\n`;
+        }
+        if (gap) {
+          md += `**Gap:** ${gap}\n\n`;
+        }
+        md += `---\n\n`;
       }
       await fsp.writeFile(path.join(dir, "lessons.md"), md, "utf-8");
     }
@@ -646,18 +701,32 @@ class SessionManager {
     if (allProblems.length > 0) {
       const open = allProblems.filter((p) => p.status === "open");
       const resolved = allProblems.filter((p) => p.status === "resolved");
-      let md = "# Problems\n\n*Auto-maintained by Session Observer*\n\n";
+      let md = `---
+title: "${project} Problems"
+domain: "memory"
+tags: ["${project}", "problems"]
+auto_generated: true
+updated: "${new Date().toISOString().slice(0, 10)}"
+---
+
+# ${project} — Problems
+
+*Auto-maintained from session timeline.*
+
+---
+
+`;
       if (open.length > 0) {
-        md += "## Open\n";
+        md += "## Open\n\n";
         for (const p of open) {
-          md += `- ${p.description} (since ${p.opened})\n`;
+          md += `- **${p.description}** (since ${p.opened})\n`;
         }
         md += "\n";
       }
       if (resolved.length > 0) {
-        md += "## Resolved\n";
+        md += "## Resolved\n\n";
         for (const p of resolved) {
-          md += `- ${p.description} → ${p.resolution ?? "resolved"} (${p.resolved ?? ""})\n`;
+          md += `- ~~${p.description}~~ → ${p.resolution ?? "resolved"} *(${p.resolved ?? ""})*\n`;
         }
       }
       await fsp.writeFile(path.join(dir, "problems.md"), md, "utf-8");
