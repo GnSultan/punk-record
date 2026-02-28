@@ -4,6 +4,7 @@ import path from "node:path";
 import { PATHS } from "../config.js";
 import { ensureDir } from "../utils/files.js";
 import { readMarkdownFileIfExists } from "../utils/markdown.js";
+import { indexFile } from "../search/indexer.js";
 
 // --- Types ---
 
@@ -653,7 +654,12 @@ updated: "${new Date().toISOString().slice(0, 10)}"
         }
         md += `---\n\n`;
       }
-      await fsp.writeFile(path.join(dir, "decisions.md"), md, "utf-8");
+      const decisionsPath = path.join(dir, "decisions.md");
+      await fsp.writeFile(decisionsPath, md, "utf-8");
+      // Auto-index the generated file
+      await indexFile(decisionsPath).catch((err) =>
+        console.error("[session-manager] Failed to index decisions.md:", err),
+      );
     }
 
     // lessons.md — Rich format with context, what was learned
@@ -693,7 +699,12 @@ updated: "${new Date().toISOString().slice(0, 10)}"
         }
         md += `---\n\n`;
       }
-      await fsp.writeFile(path.join(dir, "lessons.md"), md, "utf-8");
+      const lessonsPath = path.join(dir, "lessons.md");
+      await fsp.writeFile(lessonsPath, md, "utf-8");
+      // Auto-index the generated file
+      await indexFile(lessonsPath).catch((err) =>
+        console.error("[session-manager] Failed to index lessons.md:", err),
+      );
     }
 
     // problems.md
@@ -729,7 +740,12 @@ updated: "${new Date().toISOString().slice(0, 10)}"
           md += `- ~~${p.description}~~ → ${p.resolution ?? "resolved"} *(${p.resolved ?? ""})*\n`;
         }
       }
-      await fsp.writeFile(path.join(dir, "problems.md"), md, "utf-8");
+      const problemsPath = path.join(dir, "problems.md");
+      await fsp.writeFile(problemsPath, md, "utf-8");
+      // Auto-index the generated file
+      await indexFile(problemsPath).catch((err) =>
+        console.error("[session-manager] Failed to index problems.md:", err),
+      );
     }
   }
 
