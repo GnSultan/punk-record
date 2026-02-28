@@ -277,6 +277,11 @@ class SessionManager {
     // Update extracted docs
     await this.updateExtractedDocs(this.activeSession.project);
 
+    // Auto-backup after session (non-blocking)
+    this.autoBackup().catch((err) =>
+      console.error("[session-manager] Auto-backup failed:", err)
+    );
+
     // Format summary
     const output = this.formatSessionSummary(record);
     this.activeSession = null;
@@ -828,6 +833,29 @@ updated: "${new Date().toISOString().slice(0, 10)}"
       lessons,
       pendingWork,
     };
+  }
+
+  /**
+   * Auto-backup brain after session (throttled to max once per hour)
+   */
+  private lastBackup = 0;
+  private async autoBackup(): Promise<void> {
+    const now = Date.now();
+    const oneHour = 60 * 60 * 1000;
+
+    // Throttle: only backup if it's been at least 1 hour since last backup
+    if (now - this.lastBackup < oneHour) {
+      return;
+    }
+
+    try {
+      const { backupBrain } = await import("../utils/backup.js");
+      await backupBrain();
+      this.lastBackup = now;
+      console.error("[session-manager] Auto-backup completed");
+    } catch (err) {
+      console.error("[session-manager] Auto-backup failed:", err);
+    }
   }
 
   private formatSessionContext(state: ProjectState): string {
